@@ -17,22 +17,59 @@ function go() {
   doc.text(document.getElementById('to').value, toX, toY);
   window.open(doc.dataURI());
 }
+
+function updateLocation() {
+  var suffix =
+    './#from=' + encodeURIComponent(document.getElementById('from').value) +
+    '&to=' + encodeURIComponent(document.getElementById('to').value) +
+    '&usps=' + (document.getElementById('usps').checked ? '1' : '0');
+  document.getElementById('link').href = suffix;
+}
+
+function prefill() {
+  var idx = document.location.href.indexOf('#');
+  if (idx < 0)
+    return;
+  var suffix = document.location.href.substring(idx + 1);
+  var parts = suffix.split('&');
+  for (var i = 0; i < parts.length; i++) {
+    var part = parts[i];
+    var subidx = part.indexOf('=');
+    if (subidx < 0)
+      continue;
+    var key = part.substr(0, subidx);
+    var value = part.substr(subidx + 1);
+    switch (key) {
+      case 'from':
+        document.getElementById('from').value = decodeURIComponent(value);
+        break;
+      case 'to':
+        document.getElementById('to').value = decodeURIComponent(value);
+        break;
+      case 'usps':
+        document.getElementById('usps').checked = value == '1';
+        break;
+    }
+  }
+}
+
 </script>
 
 
 </head>
-<body>
+<body onload="javascript:prefill()">
 From:<br/>
-<textarea id="from" rows="5" cols="40">
+<textarea id="from" rows="5" cols="40" onkeyup="javascript:updateLocation()" onchange="javascript:updateLocation()">
 Mr Sender
 123 Four Lane
 San Francisco, CA 98765</textarea><br/>
 To:<br/>
-<textarea id="to" rows="5" cols="40">
+<textarea id="to" rows="5" cols="40" onkeyup="javascript:updateLocation()" onchange="javascript:updateLocation()">
 Mr Recepient
 456 Tomorrow Drive
 New York, NY 01221</textarea><br/>
-<input type="checkbox" id="usps">Leave room for USPS delivery confirmation label<br/>
-<button onclick="go()">Submit</button>
+<input type="checkbox" id="usps" onchange="javascript:updateLocation()">Leave room for USPS delivery confirmation label<br/>
+<button onclick="go()">Submit</button><br/>
+<a href="./" id="link">Link to this page</a>
 </body>
 </html>
