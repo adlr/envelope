@@ -1,0 +1,38 @@
+<html><head><title>Envelope Maker</title>
+<script type="text/javascript" src="pdfkit-0.1-allfonts.min.js"></script>
+<script type="text/javascript">
+function go() {
+  var doc = new PDFDocument;
+  doc.font('Helvetica').fontSize(11);
+  doc.rotate(90);
+  console.log();
+  doc.text(document.getElementById('from').value, 190, 960);
+  doc.font('Helvetica').fontSize(14);
+  var toX = 400;
+  var toY = 1060;
+  if (document.getElementById('usps').checked) {
+    toX = 500;
+    toY = 1080;
+  }
+  doc.text(document.getElementById('to').value, toX, toY);
+  window.open(doc.dataURI());
+}
+</script>
+
+
+</head>
+<body>
+From:<br/>
+<textarea id="from" rows="5" cols="40">
+Mr Sender
+123 Four Lane
+San Francisco, CA 98765</textarea><br/>
+To:<br/>
+<textarea id="to" rows="5" cols="40">
+Mr Recepient
+456 Tomorrow Drive
+New York, NY 01221</textarea><br/>
+<input type="checkbox" id="usps">Leave room for USPS delivery confirmation label<br/>
+<button onclick="go()">Submit</button>
+</body>
+</html>
