@@ -1,21 +1,25 @@
 <html><head><title>Envelope Maker</title>
-<script type="text/javascript" src="pdfkit-0.1-allfonts.min.js"></script>
+<script type="text/javascript" src="blob-stream.js"></script>
+<script type="text/javascript" src="pdfkit.js"></script>
 <script type="text/javascript">
 function go() {
   var doc = new PDFDocument;
-  doc.font('Helvetica').fontSize(11);
   doc.rotate(90);
-  console.log();
-  doc.text(document.getElementById('from').value, 190, 960);
+  doc.font('Helvetica').fontSize(11);
+  doc.text(document.getElementById('from').value, 18, -436);
   doc.font('Helvetica').fontSize(14);
-  var toX = 400;
-  var toY = 1060;
+  var toX = 300;
+  var toY = -300;
   if (document.getElementById('usps').checked) {
     toX = 500;
-    toY = 1080;
+    toY = -180; 
   }
   doc.text(document.getElementById('to').value, toX, toY);
-  window.open(doc.dataURI());
+  stream = doc.pipe(blobStream());
+  doc.end();
+  stream.on('finish', function() {
+    window.open(stream.toBlobURL('application/pdf'));
+  });
 }
 
 function updateLocation() {
