@@ -1,20 +1,123 @@
 <html><head><title>Envelope Maker</title>
 <script type="text/javascript" src="blob-stream.js"></script>
 <script type="text/javascript" src="pdfkit.js"></script>
+<script type="text/javascript" src="jquery-3.1.1.min.js"></script>
 <script type="text/javascript">
-function go() {
-  var doc = new PDFDocument;
-  doc.rotate(90);
-  doc.font('Helvetica').fontSize(11);
-  doc.text(document.getElementById('from').value, 18, -436);
-  doc.font('Helvetica').fontSize(14);
-  var toX = 300;
-  var toY = -300;
-  if (document.getElementById('usps').checked) {
-    toX = 500;
-    toY = -180; 
+var config = {};
+
+function centsToDollars(cents) {
+  var str = cents + "";
+  if (str.length < 2)
+    str = "0" + str;
+  if (str.length < 3)
+    str = "0" + str;
+  var len = str.length;
+  return str.substring(0, len - 2) + '.' + str.substring(len - 2);
+}
+
+function oneNumberToWord(num) {
+  return ["zero", "one", "two", "three", "four", "five", "six", "seven",
+	  "eight", "nine"][num];
+}
+
+function numberToWords(num) {
+  if (num == 0)
+    return "zero";
+
+  var ret = [];
+  if (num > 999) {
+    return "NUM TOO HIGH!";
   }
-  doc.text(document.getElementById('to').value, toX, toY);
+  if (num > 99) {
+    ret.push(oneNumberToWord(Math.floor(num / 100)));
+    ret.push("hundred");
+    num = num % 100;
+  }
+  var needHyphen = false;
+  if (num >= 20) {
+    ret.push(["unused", "unused", "twenty", "thirty", "fourty", "fifty",
+	      "sixty", "seventy", "eighty", "ninety"][Math.floor(num / 10)]);
+    num = num % 10;
+    needHyphen = true;
+  } else if (num >= 10) {
+    ret.push(["ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+	      "sixteen", "seventeen", "eighteen", "nineteen"][num - 10]);
+    return ret.join(" ");
+  }
+  if (num > 0) {
+    var word = oneNumberToWord(num);
+    if (needHyphen) {
+      ret[ret.length-1] += "-" + word;
+    } else {
+      ret.push(word);
+    }
+  }
+  return ret.join(" ");
+}
+
+function capsWords(str) {
+  return str.replace(/\b\w/g,
+		     function(letter) { return letter.toUpperCase(); });
+}
+
+function priceToWords(dollars, cents) {
+  var lowerCase = numberToWords(dollars) +
+    (dollars == 1 ? " dollar" : " dollars");
+  var upperCase = capsWords(lowerCase);
+  if (cents > 0) {
+    var lowerCaseCents = numberToWords(cents) +
+      (cents == 1 ? " cent" : " cents");
+    var upperCaseCents = capsWords(lowerCaseCents);
+    upperCase += " and " + upperCaseCents;
+  }
+  return upperCase;
+}
+
+function rateToPercent(rate) {
+  return (rate * 100) + "%";
+}
+
+function go() {
+  // in cents:
+  var subtotal = Math.round(parseFloat(document.getElementById('subtotal').value) * 100);
+  var tax = Math.ceil(config.taxrate * subtotal);
+  var total = subtotal + tax;
+
+  var doc = new PDFDocument({'margins': {'top': 18, 'bottom': 18, 'left': 18, 'right': 18}});
+  //doc.addPage();
+  doc.font('Helvetica').fontSize(11);
+
+  var LINE_HEIGHT = 15;
+  
+  for (var i = 0; i < config.lines.length; i++) {
+    var line = config.lines[i].replace(/SUBTOTAL/g, centsToDollars(subtotal)).
+      replace(/TAXRATE/g, rateToPercent(config.taxrate)).
+      replace(/TAX/g, centsToDollars(tax)).
+      replace(/FINAL/g, centsToDollars(total));
+    doc.text(line, 72, 72 + LINE_HEIGHT * i);
+  }
+
+  // check parts:
+  console.log("Digi-Key");
+  var totalWords = centsToDollars(total).split('.')[0] + " dollars and " +
+    centsToDollars(total).split('.')[1] + " cents";
+  var now = new Date();
+  var date = (now.getMonth() + 1) + "/" + (now.getDate()) + "/" + now.getFullYear();
+  var memo = document.getElementById('memo').value;
+  console.log(date);
+  console.log(totalWords);
+  console.log(memo);
+  
+  doc.fontSize(10);
+  doc.text(date, 72 * 3.5, 72 * 8.875 + 2);
+  doc.text("Digi-Key",
+	  72 * .75, 72 * 9.375 - 2);
+  doc.text(centsToDollars(total), 72 * (4 + 7/8), 72 * 9.375 - 2);
+  doc.text(priceToWords(parseInt(centsToDollars(total).split('.')[0]),
+			parseInt(centsToDollars(total).split('.')[1])),
+	   72 * 1.25, 72 * 9.5 + 8);
+  doc.text(memo, .75 * 72, 10.37 * 72 + 2);
+
   stream = doc.pipe(blobStream());
   doc.end();
   stream.on('finish', function() {
@@ -31,30 +134,12 @@ function updateLocation() {
 }
 
 function prefill() {
-  var idx = document.location.href.indexOf('#');
-  if (idx < 0)
-    return;
-  var suffix = document.location.href.substring(idx + 1);
-  var parts = suffix.split('&');
-  for (var i = 0; i < parts.length; i++) {
-    var part = parts[i];
-    var subidx = part.indexOf('=');
-    if (subidx < 0)
-      continue;
-    var key = part.substr(0, subidx);
-    var value = part.substr(subidx + 1);
-    switch (key) {
-      case 'from':
-        document.getElementById('from').value = decodeURIComponent(value);
-        break;
-      case 'to':
-        document.getElementById('to').value = decodeURIComponent(value);
-        break;
-      case 'usps':
-        document.getElementById('usps').checked = value == '1';
-        break;
-    }
-  }
+  $.getJSON("config.json", function(data) {
+    config = data;
+    document.getElementById('envelopeLink').href = config.envelopeLink;
+    document.getElementById('submit').disabled = false;
+  });
+
 }
 
 </script>
@@ -62,19 +147,10 @@ function prefill() {
 
 </head>
 <body onload="javascript:prefill()">
-From:<br/>
-<textarea id="from" rows="5" cols="40" onkeyup="javascript:updateLocation()" onchange="javascript:updateLocation()">
-Alice
-123 Four Lane
-San Francisco, CA 98765</textarea><br/>
-To:<br/>
-<textarea id="to" rows="5" cols="40" onkeyup="javascript:updateLocation()" onchange="javascript:updateLocation()">
-Bob
-456 Tomorrow Drive
-New York, NY 01221</textarea><br/>
-<input type="checkbox" id="usps" onchange="javascript:updateLocation()">Leave room for USPS delivery confirmation label<br/>
-<button onclick="go()">Submit</button><br/>
-<a href="./" id="link">Link to this page</a><br/>
+Subtotal: $<input id="subtotal" type="text" name="subtotal" value=""><br/>
+Memo: <input id="memo" type="text" name="memo" value=""><br/>
+<button id="submit" onclick="go()" disabled="true">Submit</button><br/>
+<a href="" id="envelopeLink">Envelope</a><br/>
 <a href="https://github.com/adlr/envelope">Fork me on GitHub</a>
 </body>
 </html>
