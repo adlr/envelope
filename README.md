@@ -1,6 +1,9 @@
 envelope
 ========
 
-Easily create a PDF that you can print onto an envelope to mail it.
+Simple web page to easily print envelopes.
 
-You can visit the live site at http://adlr.info/envelope/
+You can visit the live site at http://adlr.info/envelope/js/
+
+The older version, which generated a letter-sized PDF, is still at
+http://adlr.info/envelope/
